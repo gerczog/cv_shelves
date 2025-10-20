@@ -1,0 +1,12 @@
+[project]
+name = "cv-shelves-backend"
+version = "0.1.0"
+description = "ML Backend service for CV Shelves application"
+requires-python = ">=3.13"
+dependencies = [
+    "dotenv>=0.9.9",
+    "fastapi>=0.119.0",
+    "huggingface-hub>=0.35.3",
+    "rfdetr>=1.3.0",
+    "ultralytics>=8.3.216",
+]

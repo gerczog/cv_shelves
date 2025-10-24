@@ -84,6 +84,13 @@ scp cv_shelves_backend.tar.gz user@server:/home/user/
 tar -xzf cv_shelves_backend.tar.gz
 cd cv_shelves_backend
 cp example.env .env
+
+# ВАЖЛИВО: Відредагуйте .env файл для сервера
+nano .env
+# Змініть:
+# REACT_APP_API_URL=http://YOUR_SERVER_IP:8000
+# POSTGRES_PASSWORD=strong_password_here
+
 make up
 ```
 

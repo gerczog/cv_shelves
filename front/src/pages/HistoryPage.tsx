@@ -162,7 +162,15 @@ const HistoryPage: React.FC = () => {
     }
   }, [currentPage, pageSize, searchText, searchUser, searchPredictionId, filterModel, minConfidence, maxConfidence]);
 
+  // Автоматическая загрузка данных при монтировании компонента
   useEffect(() => {
+    console.log('Component mounted, loading data...');
+    loadData();
+  }, []); // Пустой массив зависимостей - срабатывает только при монтировании
+
+  // Отдельный useEffect для перезагрузки при изменении фильтров
+  useEffect(() => {
+    console.log('Filters changed, reloading data...');
     loadData();
   }, [loadData]);
 

@@ -5,6 +5,7 @@ export interface HistoryFilters {
   skip?: number;
   limit?: number;
   userId?: string;
+  users?: string[];
   model?: string;
   searchText?: string;
   minConfidence?: number;

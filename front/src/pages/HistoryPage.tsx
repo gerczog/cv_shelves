@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, List, Typography, Space, Tag, Button, Empty, Input, Select, Slider, Row, Col, message, Spin, Modal } from 'antd';
+import { Card, List, Typography, Space, Tag, Button, Empty, Input, Select, Slider, Row, Col, message, Spin, Modal, Checkbox } from 'antd';
 import { SearchOutlined, FilterOutlined, UserOutlined, CommentOutlined, EditOutlined, SaveOutlined, ReloadOutlined, DeleteOutlined, DownloadOutlined } from '@ant-design/icons';
 import { usePrediction } from '../context/PredictionContext';
 import { Prediction } from '../types';
@@ -14,10 +14,9 @@ const { Option } = Select;
 const HistoryPage: React.FC = () => {
   const { updatePredictionComment, state } = usePrediction();
   const [searchText, setSearchText] = useState('');
-  const [searchUser, setSearchUser] = useState('');
   const [searchPredictionId, setSearchPredictionId] = useState('');
   const [filterModel, setFilterModel] = useState<string>('all');
-  const [filterUser, setFilterUser] = useState<string>('all');
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [minConfidence, setMinConfidence] = useState(0);
   const [maxConfidence, setMaxConfidence] = useState(1);
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -47,24 +46,24 @@ const HistoryPage: React.FC = () => {
     console.log('Setting default user filter:', {
       isAuthenticated: state.isAuthenticated,
       currentUser: state.currentUser,
-      filterUser: filterUser
+      selectedUsers: selectedUsers
     });
     
-    if (state.isAuthenticated && state.currentUser && filterUser === 'all') {
-      console.log('Setting filterUser to:', state.currentUser);
-      setFilterUser(state.currentUser);
-      // Автоматически подставляем в поиск
-      setSearchUser(state.currentUser);
-      console.log('Set searchUser to:', state.currentUser);
+    if (state.isAuthenticated && state.currentUser && selectedUsers.length === 0) {
+      console.log('Setting selectedUsers to:', [state.currentUser]);
+      setSelectedUsers([state.currentUser]);
+    } else if (!state.isAuthenticated && selectedUsers.length === 0) {
+      // Если пользователь не аутентифицирован, показываем всех
+      setSelectedUsers([]);
     }
-  }, [state.isAuthenticated, state.currentUser]); // Убрали filterUser из зависимостей
+  }, [state.isAuthenticated, state.currentUser, selectedUsers.length]);
 
   // Reset page when filter changes
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
-  }, [filterUser, filterModel, searchText, searchUser, searchPredictionId, minConfidence, maxConfidence]);
+  }, [selectedUsers, filterModel, searchText, searchPredictionId, minConfidence, maxConfidence]);
 
   // Load data from API
   const loadData = useCallback(async () => {
@@ -85,19 +84,18 @@ const HistoryPage: React.FC = () => {
         return;
       }
 
-      // Load predictions
+      // Load predictions - загружаем все данные для клиентской фильтрации
       const filters: HistoryFilters = {
-        skip: (currentPage - 1) * pageSize,
-        limit: pageSize,
+        skip: 0, // Загружаем все данные
+        limit: 10000, // Большой лимит для получения всех данных
         model: filterModel !== 'all' ? filterModel : undefined,
-        searchText: searchText || searchUser || searchPredictionId || undefined,
+        searchText: searchText || searchPredictionId || undefined,
         minConfidence: minConfidence > 0 ? minConfidence : undefined,
         maxConfidence: maxConfidence < 1 ? maxConfidence : undefined,
       };
 
       console.log('Loading data with filters:', filters);
-      console.log('Current filterUser:', filterUser);
-      console.log('Current searchUser:', searchUser);
+      console.log('Current selectedUsers:', selectedUsers);
       console.log('API Base URL:', process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000');
 
       const [predictionsResponse, statisticsResponse, usersResponse] = await Promise.all([
@@ -124,8 +122,24 @@ const HistoryPage: React.FC = () => {
         setFilteredPredictions([]);
         setTotal(0);
       } else {
-        setFilteredPredictions(predictionsResponse.predictions);
-        setTotal(predictionsResponse.total || 0);
+        // Клиентская фильтрация по пользователям
+        let filteredData = predictionsResponse.predictions;
+        
+        if (selectedUsers.length > 0) {
+          // Фильтруем только по выбранным пользователям
+          filteredData = predictionsResponse.predictions.filter(prediction => 
+            selectedUsers.includes(prediction.user || 'Анонімний користувач')
+          );
+        }
+        // Если selectedUsers пустой массив, показываем всех пользователей
+        
+        // Применяем пагинацию
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginatedData = filteredData.slice(startIndex, endIndex);
+        
+        setFilteredPredictions(paginatedData);
+        setTotal(filteredData.length);
       }
       
       if (!statisticsResponse) {
@@ -162,7 +176,7 @@ const HistoryPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, searchText, searchUser, searchPredictionId, filterModel, minConfidence, maxConfidence]);
+  }, [currentPage, pageSize, searchText, searchPredictionId, filterModel, selectedUsers, minConfidence, maxConfidence]);
 
   // Автоматическая загрузка данных при монтировании компонента
   useEffect(() => {
@@ -207,14 +221,9 @@ const HistoryPage: React.FC = () => {
     setCommentText('');
   };
 
-  // Обработчик изменения поля "Користувач"
-  const handleUserFilterChange = (value: string) => {
-    setFilterUser(value);
-    if (value === 'all') {
-      setSearchUser(''); // Очищаем поиск если выбраны все пользователи
-    } else {
-      setSearchUser(value); // Подставляем выбранного пользователя в поиск
-    }
+  // Обработчик изменения выбранных пользователей
+  const handleUsersChange = (checkedValues: string[]) => {
+    setSelectedUsers(checkedValues);
   };
 
   const handleExportHistory = async () => {
@@ -374,17 +383,6 @@ const HistoryPage: React.FC = () => {
             </Col>
             <Col xs={24} sm={12} md={6}>
               <Space direction="vertical" style={{ width: '100%' }}>
-                <Text strong><UserOutlined /> Пошук за користувачем:</Text>
-                <Search
-                  placeholder="Введіть ім'я користувача..."
-                  value={searchUser}
-                  onChange={(e) => setSearchUser(e.target.value)}
-                  prefix={<UserOutlined />}
-                />
-              </Space>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Space direction="vertical" style={{ width: '100%' }}>
                 <Text strong>Пошук за номером передбачення:</Text>
                 <Search
                   placeholder="Введіть номер передбачення..."
@@ -415,17 +413,34 @@ const HistoryPage: React.FC = () => {
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={8}>
               <Space direction="vertical" style={{ width: '100%' }}>
-                <Text strong>Користувач:</Text>
-                <Select
-                  value={filterUser}
-                  onChange={handleUserFilterChange}
+                <Space>
+                  <Text strong>Користувачі:</Text>
+                  <Button 
+                    size="small" 
+                    onClick={() => setSelectedUsers(users.map(u => u.username))}
+                  >
+                    Вибрати всіх
+                  </Button>
+                  <Button 
+                    size="small" 
+                    onClick={() => setSelectedUsers([])}
+                  >
+                    Очистити
+                  </Button>
+                </Space>
+                <Checkbox.Group
+                  value={selectedUsers}
+                  onChange={handleUsersChange}
                   style={{ width: '100%' }}
                 >
-                  <Option value="all">Всі користувачі</Option>
-                  {users.map(user => (
-                    <Option key={user.id} value={user.username}>{user.username}</Option>
-                  ))}
-                </Select>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    {users.map(user => (
+                      <Checkbox key={user.id} value={user.username}>
+                        {user.username}
+                      </Checkbox>
+                    ))}
+                  </Space>
+                </Checkbox.Group>
               </Space>
             </Col>
             <Col xs={24} sm={12} md={16}>
@@ -457,10 +472,9 @@ const HistoryPage: React.FC = () => {
               <Button 
                 onClick={() => {
                   setSearchText('');
-                  setSearchUser('');
                   setSearchPredictionId('');
                   setFilterModel('all');
-                  setFilterUser('all');
+                  setSelectedUsers([]);
                   setMinConfidence(0);
                   setMaxConfidence(1);
                   setCurrentPage(1);

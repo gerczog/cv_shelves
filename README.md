@@ -89,6 +89,7 @@ cp example.env .env
 nano .env
 # Змініть:
 # REACT_APP_API_URL=http://YOUR_SERVER_IP:8000
+# CORS_ORIGINS=http://YOUR_SERVER_IP:3001,http://YOUR_SERVER_IP:8000
 # POSTGRES_PASSWORD=strong_password_here
 
 make up

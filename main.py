@@ -8,6 +8,10 @@ from DB.schema import User, Prediction
 from app.middleware import get_current_user
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # Create FastAPI application
 app = FastAPI(
@@ -17,16 +21,19 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+# Get allowed origins from environment or use defaults
+allowed_origins = os.getenv("CORS_ORIGINS", "").split(",") if os.getenv("CORS_ORIGINS") else [
+    "http://127.0.0.1:3001",  # Фронтенд URL
+    "http://localhost:3001",  # Альтернативный URL
+    "http://frontend:3000",   # Если фронтенд в Docker
+    "http://app:8000",        # Docker backend URL
+    "http://127.0.0.1:8000",  # Local backend URL
+    "http://localhost:8000",  # Local backend URL
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:3001",  # Фронтенд URL
-        "http://localhost:3001",  # Альтернативный URL
-        "http://frontend:3000",   # Если фронтенд в Docker
-        "http://app:8000",        # Docker backend URL
-        "http://127.0.0.1:8000",  # Local backend URL
-        "http://localhost:8000",  # Local backend URL
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

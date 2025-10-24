@@ -44,7 +44,14 @@ const HistoryPage: React.FC = () => {
 
   // Set default user filter to current user
   useEffect(() => {
+    console.log('Setting default user filter:', {
+      isAuthenticated: state.isAuthenticated,
+      currentUser: state.currentUser,
+      filterUser: filterUser
+    });
+    
     if (state.isAuthenticated && state.currentUser && filterUser === 'all') {
+      console.log('Setting filterUser to:', state.currentUser);
       setFilterUser(state.currentUser);
     }
   }, [state.isAuthenticated, state.currentUser, filterUser]);
@@ -86,6 +93,7 @@ const HistoryPage: React.FC = () => {
       };
 
       console.log('Loading data with filters:', filters);
+      console.log('Current filterUser:', filterUser);
       console.log('API Base URL:', process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000');
 
       const [predictionsResponse, statisticsResponse, usersResponse] = await Promise.all([

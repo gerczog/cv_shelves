@@ -73,7 +73,6 @@ const HistoryPage: React.FC = () => {
         skip: (currentPage - 1) * pageSize,
         limit: pageSize,
         model: filterModel !== 'all' ? filterModel : undefined,
-        userId: filterUser !== 'all' ? filterUser : undefined,
         searchText: searchText || searchUser || searchPredictionId || undefined,
         minConfidence: minConfidence > 0 ? minConfidence : undefined,
         maxConfidence: maxConfidence < 1 ? maxConfidence : undefined,
@@ -144,11 +143,27 @@ const HistoryPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, searchText, searchUser, searchPredictionId, filterModel, filterUser, minConfidence, maxConfidence]);
+  }, [currentPage, pageSize, searchText, searchUser, searchPredictionId, filterModel, minConfidence, maxConfidence]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Фронтенд фильтрация по пользователю
+  useEffect(() => {
+    if (filteredPredictions.length > 0) {
+      let filteredData = filteredPredictions;
+      
+      if (filterUser !== 'all') {
+        filteredData = filteredPredictions.filter(prediction => {
+          return prediction.user === filterUser;
+        });
+      }
+      
+      setFilteredPredictions(filteredData);
+      setTotal(filteredData.length);
+    }
+  }, [filterUser]);
 
   const handleEditComment = (predictionId: string, currentComment: string) => {
     setEditingComment(predictionId);

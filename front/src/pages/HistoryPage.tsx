@@ -84,10 +84,10 @@ const HistoryPage: React.FC = () => {
         return;
       }
 
-      // Load predictions - загружаем все данные для клиентской фильтрации
+      // Load predictions
       const filters: HistoryFilters = {
-        skip: 0, // Загружаем все данные
-        limit: 10000, // Большой лимит для получения всех данных
+        skip: (currentPage - 1) * pageSize,
+        limit: pageSize,
         model: filterModel !== 'all' ? filterModel : undefined,
         searchText: searchText || searchPredictionId || undefined,
         minConfidence: minConfidence > 0 ? minConfidence : undefined,
@@ -98,17 +98,53 @@ const HistoryPage: React.FC = () => {
       console.log('Current selectedUsers:', selectedUsers);
       console.log('API Base URL:', process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000');
 
-      const [predictionsResponse, statisticsResponse, usersResponse] = await Promise.all([
-        apiService.getPredictions(filters),
-        apiService.getStatistics(),
-        apiService.getUsers()
+      // Загружаем данные в зависимости от выбранных пользователей
+      let allPredictions: Prediction[] = [];
+      let totalCount = 0;
+
+      // Загружаем пользователей и статистику
+      const [usersResponse, statisticsResponse] = await Promise.all([
+        apiService.getUsers(),
+        apiService.getStatistics()
       ]);
 
-      console.log('HistoryPage - loaded predictions:', predictionsResponse.predictions);
+      if (selectedUsers.length > 0) {
+        // Если выбраны пользователи, делаем запросы для каждого
+        const userMap = new Map(usersResponse.users.map(user => [user.username, user.id]));
+        
+        const userPromises = selectedUsers.map(async (username) => {
+          const userId = userMap.get(username);
+          if (userId) {
+            const userFilters = { ...filters, userId: userId };
+            const response = await apiService.getPredictions(userFilters);
+            return response;
+          }
+          return null;
+        });
+
+        const userResponses = await Promise.all(userPromises);
+        
+        // Объединяем результаты
+        userResponses.forEach(response => {
+          if (response && Array.isArray(response.predictions)) {
+            allPredictions = allPredictions.concat(response.predictions);
+            totalCount += response.total || 0;
+          }
+        });
+      } else {
+        // Если пользователи не выбраны, загружаем все данные без фильтрации по пользователям
+        const predictionsResponse = await apiService.getPredictions(filters);
+        if (predictionsResponse && Array.isArray(predictionsResponse.predictions)) {
+          allPredictions = predictionsResponse.predictions;
+          totalCount = predictionsResponse.total || 0;
+        }
+      }
+
+      console.log('HistoryPage - loaded predictions:', allPredictions);
       console.log('HistoryPage - statistics:', statisticsResponse);
       console.log('HistoryPage - users:', usersResponse.users);
       
-      predictionsResponse.predictions.forEach((pred, index) => {
+      allPredictions.forEach((pred, index) => {
         console.log(`HistoryPage - prediction ${index}:`, {
           model: pred.model,
           results: pred.results,
@@ -116,31 +152,9 @@ const HistoryPage: React.FC = () => {
         });
       });
       
-      // Проверяем, что данные корректны
-      if (!predictionsResponse || !Array.isArray(predictionsResponse.predictions)) {
-        console.warn('Invalid predictions response:', predictionsResponse);
-        setFilteredPredictions([]);
-        setTotal(0);
-      } else {
-        // Клиентская фильтрация по пользователям
-        let filteredData = predictionsResponse.predictions;
-        
-        if (selectedUsers.length > 0) {
-          // Фильтруем только по выбранным пользователям
-          filteredData = predictionsResponse.predictions.filter(prediction => 
-            selectedUsers.includes(prediction.user || 'Анонімний користувач')
-          );
-        }
-        // Если selectedUsers пустой массив, показываем всех пользователей
-        
-        // Применяем пагинацию
-        const startIndex = (currentPage - 1) * pageSize;
-        const endIndex = startIndex + pageSize;
-        const paginatedData = filteredData.slice(startIndex, endIndex);
-        
-        setFilteredPredictions(paginatedData);
-        setTotal(filteredData.length);
-      }
+      // Устанавливаем данные
+      setFilteredPredictions(allPredictions);
+      setTotal(totalCount);
       
       if (!statisticsResponse) {
         console.warn('Invalid statistics response:', statisticsResponse);

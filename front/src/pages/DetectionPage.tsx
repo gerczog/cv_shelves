@@ -260,8 +260,11 @@ const DetectionPage: React.FC = () => {
           yoloConf = singleConf;
         }
 
+        // Используем ID из API ответа, если он есть, иначе локальный ID
+        const actualPredictionId = results.prediction_id || predictionId;
+
         const prediction: Prediction = {
-          id: predictionId,
+          id: actualPredictionId,
           imageUrl,
           imageBase64: results.image_base64,
           model: selectedModel,

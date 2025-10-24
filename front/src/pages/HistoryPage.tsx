@@ -42,7 +42,7 @@ const HistoryPage: React.FC = () => {
     }
   }, []);
 
-  // Set default user filter to current user
+  // Set default user filter to current user (only once)
   useEffect(() => {
     console.log('Setting default user filter:', {
       isAuthenticated: state.isAuthenticated,
@@ -54,7 +54,7 @@ const HistoryPage: React.FC = () => {
       console.log('Setting filterUser to:', state.currentUser);
       setFilterUser(state.currentUser);
     }
-  }, [state.isAuthenticated, state.currentUser, filterUser]);
+  }, [state.isAuthenticated, state.currentUser]); // Убрали filterUser из зависимостей
 
   // Reset page when filter changes
   useEffect(() => {

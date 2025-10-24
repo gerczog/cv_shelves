@@ -53,6 +53,8 @@ const HistoryPage: React.FC = () => {
     if (state.isAuthenticated && state.currentUser && filterUser === 'all') {
       console.log('Setting filterUser to:', state.currentUser);
       setFilterUser(state.currentUser);
+      // Автоматически подставляем в поиск
+      setSearchUser(state.currentUser);
     }
   }, [state.isAuthenticated, state.currentUser]); // Убрали filterUser из зависимостей
 
@@ -87,7 +89,7 @@ const HistoryPage: React.FC = () => {
         skip: (currentPage - 1) * pageSize,
         limit: pageSize,
         model: filterModel !== 'all' ? filterModel : undefined,
-        searchText: searchText || searchUser || searchPredictionId || (filterUser !== 'all' ? filterUser : undefined) || undefined,
+        searchText: searchText || searchUser || searchPredictionId || undefined,
         minConfidence: minConfidence > 0 ? minConfidence : undefined,
         maxConfidence: maxConfidence < 1 ? maxConfidence : undefined,
       };
@@ -158,7 +160,7 @@ const HistoryPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, searchText, searchUser, searchPredictionId, filterModel, filterUser, minConfidence, maxConfidence]);
+  }, [currentPage, pageSize, searchText, searchUser, searchPredictionId, filterModel, minConfidence, maxConfidence]);
 
   useEffect(() => {
     loadData();
@@ -188,6 +190,16 @@ const HistoryPage: React.FC = () => {
   const handleCancelEdit = () => {
     setEditingComment(null);
     setCommentText('');
+  };
+
+  // Обработчик изменения поля "Користувач"
+  const handleUserFilterChange = (value: string) => {
+    setFilterUser(value);
+    if (value === 'all') {
+      setSearchUser(''); // Очищаем поиск если выбраны все пользователи
+    } else {
+      setSearchUser(value); // Подставляем выбранного пользователя в поиск
+    }
   };
 
   const handleExportHistory = async () => {
@@ -391,7 +403,7 @@ const HistoryPage: React.FC = () => {
                 <Text strong>Користувач:</Text>
                 <Select
                   value={filterUser}
-                  onChange={setFilterUser}
+                  onChange={handleUserFilterChange}
                   style={{ width: '100%' }}
                 >
                   <Option value="all">Всі користувачі</Option>

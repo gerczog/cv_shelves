@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cv_shelves_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./DB/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - cv_shelves_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cv_shelves_user -d cv_shelves"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  model_downloader:
+    build: .
+    container_name: cv_shelves_model_downloader
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+    volumes:
+      - ./app/data/ml_models:/app/app/data/ml_models
+    networks:
+      - cv_shelves_network
+    command: ["python", "scripts/download_models.py"]
+    profiles:
+      - models
+
+  migrations:
+    build: .
+    container_name: cv_shelves_migrations
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+    volumes:
+      - ./app/data/ml_models:/app/app/data/ml_models
+    networks:
+      - cv_shelves_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["/app/scripts/run_migrations.sh"]
+
+  app:
+    build: .
+    container_name: cv_shelves_app
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - DEBUG=${DEBUG}
+      - ML_DEVICE=${ML_DEVICE}
+      - RFDETR_CONFIDENCE=${RFDETR_CONFIDENCE}
+      - YOLO_CONFIDENCE=${YOLO_CONFIDENCE}
+      - HF_TOKEN=${HF_TOKEN}
+      - HF_XET_CACHE=${HF_XET_CACHE}
+      - HF_XET_HIGH_PERFORMANCE=${HF_XET_HIGH_PERFORMANCE}
+      - RF_DETR_PATH=${RF_DETR_PATH}
+      - TITLE_RF_DETR=${TITLE_RF_DETR}
+      - YOLO_PATH=${YOLO_PATH}
+      - TITLE_YOLO=${TITLE_YOLO}
+    volumes:
+      - ./app/data/ml_models:/app/app/data/ml_models
+      - ./logs:/app/logs
+    ports:
+      - "8000:8000"
+    networks:
+      - cv_shelves_network
+    depends_on:
+      - postgres
+      - migrations
+    restart: unless-stopped
+
+  frontend:
+    build: ./front
+    container_name: cv_shelves_frontend
+    environment:
+      - REACT_APP_API_URL=http://127.0.0.1:8000
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./front:/app
+      - /app/node_modules
+    networks:
+      - cv_shelves_network
+    depends_on:
+      - app
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  cv_shelves_network:
+    external: true

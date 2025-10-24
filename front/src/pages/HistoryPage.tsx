@@ -55,6 +55,7 @@ const HistoryPage: React.FC = () => {
       setFilterUser(state.currentUser);
       // Автоматически подставляем в поиск
       setSearchUser(state.currentUser);
+      console.log('Set searchUser to:', state.currentUser);
     }
   }, [state.isAuthenticated, state.currentUser]); // Убрали filterUser из зависимостей
 
@@ -96,6 +97,7 @@ const HistoryPage: React.FC = () => {
 
       console.log('Loading data with filters:', filters);
       console.log('Current filterUser:', filterUser);
+      console.log('Current searchUser:', searchUser);
       console.log('API Base URL:', process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000');
 
       const [predictionsResponse, statisticsResponse, usersResponse] = await Promise.all([
@@ -165,7 +167,12 @@ const HistoryPage: React.FC = () => {
   // Автоматическая загрузка данных при монтировании компонента
   useEffect(() => {
     console.log('Component mounted, loading data...');
-    loadData();
+    // Небольшая задержка, чтобы дать время для установки searchUser
+    const timer = setTimeout(() => {
+      loadData();
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, []); // Пустой массив зависимостей - срабатывает только при монтировании
 
   // Отдельный useEffect для перезагрузки при изменении фильтров

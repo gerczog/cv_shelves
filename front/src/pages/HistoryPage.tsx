@@ -49,6 +49,13 @@ const HistoryPage: React.FC = () => {
     }
   }, [state.isAuthenticated, state.currentUser, filterUser]);
 
+  // Reset page when filter changes
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  }, [filterUser, filterModel, searchText, searchUser, searchPredictionId, minConfidence, maxConfidence]);
+
   // Load data from API
   const loadData = useCallback(async () => {
     setLoading(true);

@@ -62,204 +62,32 @@ const DetectionPage: React.FC = () => {
       const predictionId = generatePredictionId();
       const imageUrl = createImageUrl(selectedImage);
       let results: any = {};
+      let isDuplicateFound = false;
+      let duplicatePrediction: Prediction | null = null;
 
-      if (selectedModel === 'both') {
-        // Використовуємо новий API для комбінованих передбачень
-        try {
-          results = await apiService.predictBoth(selectedImage, rfdetrConfidence, yoloConfidence);
-        } catch (error: any) {
-          console.error('Combined prediction failed:', error);
-          console.log('Error response:', error.response?.data);
-          if (error.response?.data?.is_duplicate) {
-            console.log('Дублікат виявлено, завантажуємо з бази даних');
-            const duplicateId = error.response?.data?.duplicate_id;
-            
-            // Отримуємо результати дубліката з бази
-            try {
-              const duplicateResults = await apiService.getPredictionById(duplicateId);
-              results = duplicateResults.results;
-              console.log('Using duplicate results for display:', results);
-              
-              // Створюємо об'єкт prediction для відображення
-              const duplicatePrediction: Prediction = {
-                id: duplicateResults.id,
-                imageUrl: duplicateResults.imageUrl,
-                imageBase64: duplicateResults.imageBase64,
-                model: duplicateResults.model,
-                results: duplicateResults.results,
-                timestamp: new Date(duplicateResults.timestamp),
-                confidence: duplicateResults.confidence,
-                rfdetrConfidence: duplicateResults.rfdetrConfidence,
-                yoloConfidence: duplicateResults.yoloConfidence,
-                confidenceThreshold: duplicateResults.confidenceThreshold,
-                rfdetrThreshold: duplicateResults.rfdetrThreshold,
-                yoloThreshold: duplicateResults.yoloThreshold,
-                user: duplicateResults.user,
-                imageHash: duplicateResults.imageHash,
-                comment: duplicateResults.comment
-              };
-              
-              setCurrentPrediction(duplicatePrediction);
-              console.log('Duplicate prediction set:', duplicatePrediction);
-            } catch (err) {
-              console.error('Failed to get duplicate results:', err);
-              results = { error: 'Failed to load duplicate results' };
-            }
-            return;
-          }
-          results = { error: 'Combined prediction failed' };
-        }
-      } else if (selectedModel === 'rfdetr') {
-        try {
-          results = await apiService.predictRfdetr(selectedImage, rfdetrConfidence);
-        } catch (error: any) {
-          console.error('RFDETR prediction failed:', error);
-          if (error.response?.data?.is_duplicate) {
-            console.log('Дублікат виявлено, завантажуємо з бази даних');
-            const duplicateId = error.response?.data?.duplicate_id;
-            
-            // Отримуємо результати дубліката з бази
-            try {
-              const duplicateResults = await apiService.getPredictionById(duplicateId);
-              results = duplicateResults.results;
-              console.log('Using duplicate results for display:', results);
-              
-              // Створюємо об'єкт prediction для відображення
-              const duplicatePrediction: Prediction = {
-                id: duplicateResults.id,
-                imageUrl: duplicateResults.imageUrl,
-                imageBase64: duplicateResults.imageBase64,
-                model: duplicateResults.model,
-                results: duplicateResults.results,
-                timestamp: new Date(duplicateResults.timestamp),
-                confidence: duplicateResults.confidence,
-                rfdetrConfidence: duplicateResults.rfdetrConfidence,
-                yoloConfidence: duplicateResults.yoloConfidence,
-                confidenceThreshold: duplicateResults.confidenceThreshold,
-                rfdetrThreshold: duplicateResults.rfdetrThreshold,
-                yoloThreshold: duplicateResults.yoloThreshold,
-                user: duplicateResults.user,
-                imageHash: duplicateResults.imageHash,
-                comment: duplicateResults.comment
-              };
-              
-              setCurrentPrediction(duplicatePrediction);
-              console.log('Duplicate prediction set:', duplicatePrediction);
-            } catch (err) {
-              console.error('Failed to get duplicate results:', err);
-              results = { error: 'Failed to load duplicate results' };
-            }
-            return;
-          }
-          results = { error: 'RFDETR prediction failed' };
-        }
-      } else if (selectedModel === 'yolo') {
-        try {
-          results = await apiService.predictYolo(selectedImage, yoloConfidence);
-        } catch (error: any) {
-          console.error('YOLO prediction failed:', error);
-          if (error.response?.data?.is_duplicate) {
-            console.log('Дублікат виявлено, завантажуємо з бази даних');
-            const duplicateId = error.response?.data?.duplicate_id;
-            
-            // Отримуємо результати дубліката з бази
-            try {
-              const duplicateResults = await apiService.getPredictionById(duplicateId);
-              results = duplicateResults.results;
-              console.log('Using duplicate results for display:', results);
-              
-              // Створюємо об'єкт prediction для відображення
-              const duplicatePrediction: Prediction = {
-                id: duplicateResults.id,
-                imageUrl: duplicateResults.imageUrl,
-                imageBase64: duplicateResults.imageBase64,
-                model: duplicateResults.model,
-                results: duplicateResults.results,
-                timestamp: new Date(duplicateResults.timestamp),
-                confidence: duplicateResults.confidence,
-                rfdetrConfidence: duplicateResults.rfdetrConfidence,
-                yoloConfidence: duplicateResults.yoloConfidence,
-                confidenceThreshold: duplicateResults.confidenceThreshold,
-                rfdetrThreshold: duplicateResults.rfdetrThreshold,
-                yoloThreshold: duplicateResults.yoloThreshold,
-                user: duplicateResults.user,
-                imageHash: duplicateResults.imageHash,
-                comment: duplicateResults.comment
-              };
-              
-              setCurrentPrediction(duplicatePrediction);
-              console.log('Duplicate prediction set:', duplicatePrediction);
-            } catch (err) {
-              console.error('Failed to get duplicate results:', err);
-              results = { error: 'Failed to load duplicate results' };
-            }
-            return;
-          }
-          results = { error: 'YOLO prediction failed' };
-        }
-      }
-
-      // Витягуємо впевненості для комбінованих результатів
-      let rfdetrConf = undefined;
-      let yoloConf = undefined;
-      let singleConf = undefined;
-
-      if (selectedModel === 'both') {
-        rfdetrConf = results.rfdetr?.confidence || 0;
-        yoloConf = results.yolo?.confidence || 0;
-      } else if (selectedModel === 'rfdetr') {
-        singleConf = results.confidence || 0;
-        rfdetrConf = singleConf;
-      } else if (selectedModel === 'yolo') {
-        singleConf = results.confidence || 0;
-        yoloConf = singleConf;
-      }
-      
-      // Для перевірки дублікатів використовуємо користувацькі пороги зі стану компонента
-      const rfdetrThreshold = selectedModel === 'both' ? rfdetrConfidence : (selectedModel === 'rfdetr' ? rfdetrConfidence : undefined);
-      const yoloThreshold = selectedModel === 'both' ? yoloConfidence : (selectedModel === 'yolo' ? yoloConfidence : undefined);
-
-      const prediction: Prediction = {
-        id: predictionId,
-        imageUrl,
-        imageBase64: results.image_base64,
-        model: selectedModel,
-        results,
-        timestamp: new Date(),
-        confidence: singleConf,
-        rfdetrConfidence: rfdetrConf,
-        yoloConfidence: yoloConf,
-        user: state.currentUser,
-        imageHash: currentImageHash || undefined,
-      };
-
-      setCurrentPrediction(prediction);
-      
-      // Спочатку перевіряємо базу даних на дублікати
+      // Сначала проверяем базу данных на дубликаты
       console.log('Checking database for duplicates...');
       console.log('Image hash:', currentImageHash);
       console.log('Model:', selectedModel);
-      console.log('RFDETR threshold from state:', rfdetrConfidence);
-      console.log('YOLO threshold from state:', yoloConfidence);
-      console.log('RFDETR threshold for API:', rfdetrThreshold);
-      console.log('YOLO threshold for API:', yoloThreshold);
+      console.log('RFDETR threshold:', rfdetrConfidence);
+      console.log('YOLO threshold:', yoloConfidence);
       
       try {
         const duplicateResults = await apiService.checkDuplicate(
           currentImageHash || '',
           selectedModel,
-          rfdetrThreshold,
-          yoloThreshold
+          selectedModel === 'both' || selectedModel === 'rfdetr' ? rfdetrConfidence : undefined,
+          selectedModel === 'both' || selectedModel === 'yolo' ? yoloConfidence : undefined
         );
         
         console.log('Database duplicate check result:', duplicateResults);
         
         if (duplicateResults.is_duplicate) {
-          // Отримуємо повні дані дубліката з бази
+          // Получаем полные данные дубликата из базы
           const existingPrediction = await apiService.getPredictionById(duplicateResults.duplicate_id);
           
-          // Оновлюємо currentPrediction з даними з бази
-          const duplicatePrediction: Prediction = {
+          // Создаем объект prediction для отображения
+          duplicatePrediction = {
             id: existingPrediction.id,
             imageUrl: existingPrediction.imageUrl,
             imageBase64: existingPrediction.imageBase64,
@@ -280,28 +108,176 @@ const DetectionPage: React.FC = () => {
           setCurrentPrediction(duplicatePrediction);
           setIsDuplicate(true);
           console.log('Duplicate loaded from database:', duplicatePrediction);
-          console.log('Current prediction set to:', duplicatePrediction);
-          console.log('Results for drawing:', duplicatePrediction.results);
-          
-          const paramsText = selectedModel === 'both' 
-            ? `RFDETR: ${((rfdetrConfidence || 0) * 100).toFixed(1)}%, YOLO: ${((yoloConfidence || 0) * 100).toFixed(1)}%`
-            : selectedModel === 'rfdetr' 
-            ? `RFDETR: ${((rfdetrConfidence || 0) * 100).toFixed(1)}%`
-            : `YOLO: ${((yoloConfidence || 0) * 100).toFixed(1)}%`;
-
-          // НЕ додаємо до історії, але відображаємо бокси
-        } else {
-          // Дублікат не знайдено, додаємо нове передбачення
-          addPrediction(prediction);
-          setIsDuplicate(false);
-          message.success('Передбачення виконано успішно!');
+          message.info('Знайдено аналогічне зображення в базі даних. Відображаються результати з БД.');
+          return;
         }
       } catch (error) {
         console.error('Failed to check duplicate in database:', error);
-        // У разі помилки додаємо передбачення
+        // Продолжаем выполнение, если проверка дубликатов не удалась
+      }
+
+      // Если дубликат не найден, выполняем новое предсказание
+      if (selectedModel === 'both') {
+        try {
+          results = await apiService.predictBoth(selectedImage, rfdetrConfidence, yoloConfidence);
+        } catch (error: any) {
+          console.error('Combined prediction failed:', error);
+          if (error.response?.data?.is_duplicate) {
+            console.log('Дублікат виявлено в API, завантажуємо з бази даних');
+            const duplicateId = error.response?.data?.duplicate_id;
+            
+            try {
+              const duplicateResults = await apiService.getPredictionById(duplicateId);
+              duplicatePrediction = {
+                id: duplicateResults.id,
+                imageUrl: duplicateResults.imageUrl,
+                imageBase64: duplicateResults.imageBase64,
+                model: duplicateResults.model,
+                results: duplicateResults.results,
+                timestamp: new Date(duplicateResults.timestamp),
+                confidence: duplicateResults.confidence,
+                rfdetrConfidence: duplicateResults.rfdetrConfidence,
+                yoloConfidence: duplicateResults.yoloConfidence,
+                confidenceThreshold: duplicateResults.confidenceThreshold,
+                rfdetrThreshold: duplicateResults.rfdetrThreshold,
+                yoloThreshold: duplicateResults.yoloThreshold,
+                user: duplicateResults.user,
+                imageHash: duplicateResults.imageHash,
+                comment: duplicateResults.comment
+              };
+              
+              setCurrentPrediction(duplicatePrediction);
+              setIsDuplicate(true);
+              message.info('Знайдено аналогічне зображення в базі даних. Відображаються результати з БД.');
+              return;
+            } catch (err) {
+              console.error('Failed to get duplicate results:', err);
+              results = { error: 'Failed to load duplicate results' };
+            }
+          } else {
+            results = { error: 'Combined prediction failed' };
+          }
+        }
+      } else if (selectedModel === 'rfdetr') {
+        try {
+          results = await apiService.predictRfdetr(selectedImage, rfdetrConfidence);
+        } catch (error: any) {
+          console.error('RFDETR prediction failed:', error);
+          if (error.response?.data?.is_duplicate) {
+            console.log('Дублікат виявлено в API, завантажуємо з бази даних');
+            const duplicateId = error.response?.data?.duplicate_id;
+            
+            try {
+              const duplicateResults = await apiService.getPredictionById(duplicateId);
+              duplicatePrediction = {
+                id: duplicateResults.id,
+                imageUrl: duplicateResults.imageUrl,
+                imageBase64: duplicateResults.imageBase64,
+                model: duplicateResults.model,
+                results: duplicateResults.results,
+                timestamp: new Date(duplicateResults.timestamp),
+                confidence: duplicateResults.confidence,
+                rfdetrConfidence: duplicateResults.rfdetrConfidence,
+                yoloConfidence: duplicateResults.yoloConfidence,
+                confidenceThreshold: duplicateResults.confidenceThreshold,
+                rfdetrThreshold: duplicateResults.rfdetrThreshold,
+                yoloThreshold: duplicateResults.yoloThreshold,
+                user: duplicateResults.user,
+                imageHash: duplicateResults.imageHash,
+                comment: duplicateResults.comment
+              };
+              
+              setCurrentPrediction(duplicatePrediction);
+              setIsDuplicate(true);
+              message.info('Знайдено аналогічне зображення в базі даних. Відображаються результати з БД.');
+              return;
+            } catch (err) {
+              console.error('Failed to get duplicate results:', err);
+              results = { error: 'Failed to load duplicate results' };
+            }
+          } else {
+            results = { error: 'RFDETR prediction failed' };
+          }
+        }
+      } else if (selectedModel === 'yolo') {
+        try {
+          results = await apiService.predictYolo(selectedImage, yoloConfidence);
+        } catch (error: any) {
+          console.error('YOLO prediction failed:', error);
+          if (error.response?.data?.is_duplicate) {
+            console.log('Дублікат виявлено в API, завантажуємо з бази даних');
+            const duplicateId = error.response?.data?.duplicate_id;
+            
+            try {
+              const duplicateResults = await apiService.getPredictionById(duplicateId);
+              duplicatePrediction = {
+                id: duplicateResults.id,
+                imageUrl: duplicateResults.imageUrl,
+                imageBase64: duplicateResults.imageBase64,
+                model: duplicateResults.model,
+                results: duplicateResults.results,
+                timestamp: new Date(duplicateResults.timestamp),
+                confidence: duplicateResults.confidence,
+                rfdetrConfidence: duplicateResults.rfdetrConfidence,
+                yoloConfidence: duplicateResults.yoloConfidence,
+                confidenceThreshold: duplicateResults.confidenceThreshold,
+                rfdetrThreshold: duplicateResults.rfdetrThreshold,
+                yoloThreshold: duplicateResults.yoloThreshold,
+                user: duplicateResults.user,
+                imageHash: duplicateResults.imageHash,
+                comment: duplicateResults.comment
+              };
+              
+              setCurrentPrediction(duplicatePrediction);
+              setIsDuplicate(true);
+              message.info('Знайдено аналогічне зображення в базі даних. Відображаються результати з БД.');
+              return;
+            } catch (err) {
+              console.error('Failed to get duplicate results:', err);
+              results = { error: 'Failed to load duplicate results' };
+            }
+          } else {
+            results = { error: 'YOLO prediction failed' };
+          }
+        }
+      }
+
+      // Если это не дубликат, создаем новое предсказание
+      if (!duplicatePrediction) {
+        // Извлекаем уверенности для комбинированных результатов
+        let rfdetrConf = undefined;
+        let yoloConf = undefined;
+        let singleConf = undefined;
+
+        if (selectedModel === 'both') {
+          rfdetrConf = results.rfdetr?.confidence || 0;
+          yoloConf = results.yolo?.confidence || 0;
+        } else if (selectedModel === 'rfdetr') {
+          singleConf = results.confidence || 0;
+          rfdetrConf = singleConf;
+        } else if (selectedModel === 'yolo') {
+          singleConf = results.confidence || 0;
+          yoloConf = singleConf;
+        }
+
+        const prediction: Prediction = {
+          id: predictionId,
+          imageUrl,
+          imageBase64: results.image_base64,
+          model: selectedModel,
+          results,
+          timestamp: new Date(),
+          confidence: singleConf,
+          rfdetrConfidence: rfdetrConf,
+          yoloConfidence: yoloConf,
+          user: state.currentUser,
+          imageHash: currentImageHash || undefined,
+        };
+
+        setCurrentPrediction(prediction);
         addPrediction(prediction);
         setIsDuplicate(false);
-        message.success('Предсказание выполнено успешно!');
+        message.success('Передбачення виконано успішно!');
       }
     } catch (error) {
       console.error('Prediction failed:', error);

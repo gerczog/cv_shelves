@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Image, Button, Input, Space, Typography, Divider, Tag, Spin } from 'antd';
 import { CommentOutlined, SaveOutlined, EyeOutlined } from '@ant-design/icons';
 import { Prediction } from '../types';
@@ -21,6 +21,11 @@ const PredictionDisplay: React.FC<PredictionDisplayProps> = ({
   const [comment, setComment] = useState(prediction.comment || '');
   const [isEditing, setIsEditing] = useState(false);
   const [showPolygons, setShowPolygons] = useState(false);
+
+  // Синхронизируем локальное состояние комментария с prediction.comment
+  useEffect(() => {
+    setComment(prediction.comment || '');
+  }, [prediction.comment]);
 
   const handleSaveComment = async () => {
     try {

@@ -42,6 +42,13 @@ const HistoryPage: React.FC = () => {
     }
   }, []);
 
+  // Set default user filter to current user
+  useEffect(() => {
+    if (state.isAuthenticated && state.currentUser && filterUser === 'all') {
+      setFilterUser(state.currentUser);
+    }
+  }, [state.isAuthenticated, state.currentUser, filterUser]);
+
   // Load data from API
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -66,6 +73,7 @@ const HistoryPage: React.FC = () => {
         skip: (currentPage - 1) * pageSize,
         limit: pageSize,
         model: filterModel !== 'all' ? filterModel : undefined,
+        userId: filterUser !== 'all' ? filterUser : undefined,
         searchText: searchText || searchUser || searchPredictionId || undefined,
         minConfidence: minConfidence > 0 ? minConfidence : undefined,
         maxConfidence: maxConfidence < 1 ? maxConfidence : undefined,
@@ -136,7 +144,7 @@ const HistoryPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, searchText, searchUser, searchPredictionId, filterModel, minConfidence, maxConfidence]);
+  }, [currentPage, pageSize, searchText, searchUser, searchPredictionId, filterModel, filterUser, minConfidence, maxConfidence]);
 
   useEffect(() => {
     loadData();

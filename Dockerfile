@@ -4,33 +4,43 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies (compiler, PostgreSQL, OpenCV deps, etc.)
+# Install system dependencies in separate layers for better caching
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender-dev \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files first for caching
+# Copy dependency files first for better caching
 COPY pyproject.toml uv.lock ./
 
 # Install Python dependencies with uv (from lockfile)
 RUN uv sync --frozen
 
-# Copy the full project
-COPY . .
+# Copy only necessary application files (not everything)
+COPY app/ ./app/
+COPY DB/ ./DB/
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
+COPY main.py ./
 
 # Copy and prepare scripts
-COPY scripts/run_migrations.sh /app/scripts/run_migrations.sh
-COPY scripts/start_app.sh /app/scripts/start_app.sh
-COPY scripts/download_models_docker.sh /app/scripts/download_models_docker.sh
+COPY scripts/ ./scripts/
 RUN chmod +x /app/scripts/*.sh
 
 # Create necessary directories

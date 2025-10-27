@@ -90,7 +90,9 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: ./front
+    build: 
+      context: ./front
+      target: development
     container_name: cv_shelves_frontend
     environment:
       - REACT_APP_API_URL=${REACT_APP_API_URL:-http://127.0.0.1:8000}
@@ -103,6 +105,22 @@ services:
       - cv_shelves_network
     depends_on:
       - app
+
+  frontend-prod:
+    build: 
+      context: ./front
+      target: production
+    container_name: cv_shelves_frontend_prod
+    environment:
+      - REACT_APP_API_URL=${REACT_APP_API_URL:-http://127.0.0.1:8000}
+    ports:
+      - "3002:80"
+    networks:
+      - cv_shelves_network
+    depends_on:
+      - app
+    profiles:
+      - production
 
 volumes:
   postgres_data:

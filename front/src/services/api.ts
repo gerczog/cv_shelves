@@ -28,6 +28,22 @@ export interface StatisticsResponse {
   };
 }
 
+export interface AppConfig {
+  upload: {
+    max_file_size_mb: number;
+    max_file_size_bytes: number;
+    allowed_extensions: string[];
+  };
+  models: {
+    rfdetr: {
+      default_confidence_threshold: number;
+    };
+    yolo: {
+      default_confidence_threshold: number;
+    };
+  };
+}
+
 export interface User {
   id: string;
   username: string;
@@ -72,6 +88,12 @@ export const apiService = {
   // Get model information
   getModelInfo: async (): Promise<ModelInfo> => {
     const response = await api.get('/v1/api/ml/models/info');
+    return response.data;
+  },
+
+  // Get application configuration
+  getConfig: async (): Promise<AppConfig> => {
+    const response = await api.get('/v1/api/ml/config');
     return response.data;
   },
 

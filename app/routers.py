@@ -43,14 +43,25 @@ auth_router = APIRouter(prefix="/v1/api/auth", tags=["Authentication"])
 
 def validate_image_file(image: UploadFile) -> None:
     """
-    Validate that the uploaded file is an image.
+    Validate that the uploaded file is an image and within size limits.
     
     Args:
         image: Uploaded file to validate
         
     Raises:
-        HTTPException: If file is not a valid image
+        HTTPException: If file is not a valid image or exceeds size limit
     """
+    from app.config import Config
+    
+    # Check file size first
+    if hasattr(image, 'size') and image.size is not None:
+        if image.size > Config.UPLOAD_CONFIG["max_file_size"]:
+            max_size_mb = Config.UPLOAD_CONFIG["max_file_size"] / (1024 * 1024)
+            raise HTTPException(
+                status_code=413, 
+                detail=f"File size exceeds maximum allowed size of {max_size_mb:.1f}MB"
+            )
+    
     # Check content type first
     if image.content_type is not None and image.content_type.startswith('image/'):
         return
@@ -111,6 +122,38 @@ async def get_model_info(current_user: User = Depends(get_current_user)):
         return JSONResponse(content=info)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting model info: {str(e)}")
+
+
+@ml_router.get("/config")
+async def get_config(current_user: User = Depends(get_current_user)):
+    """
+    Get application configuration including file upload limits.
+    
+    Returns:
+        Dictionary containing configuration information
+    """
+    try:
+        from app.config import Config
+        
+        config_info = {
+            "upload": {
+                "max_file_size_mb": Config.UPLOAD_CONFIG["max_file_size"] / (1024 * 1024),
+                "max_file_size_bytes": Config.UPLOAD_CONFIG["max_file_size"],
+                "allowed_extensions": Config.UPLOAD_CONFIG["allowed_extensions"]
+            },
+            "models": {
+                "rfdetr": {
+                    "default_confidence_threshold": Config.RFDETR_CONFIG["default_confidence_threshold"]
+                },
+                "yolo": {
+                    "default_confidence_threshold": Config.YOLO_CONFIG["default_confidence_threshold"]
+                }
+            }
+        }
+        
+        return JSONResponse(content=config_info)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting config: {str(e)}")
 
 
 @ml_router.post("/predict/rfdetr")

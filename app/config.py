@@ -54,7 +54,7 @@ class Config:
     
     # File upload configuration
     UPLOAD_CONFIG = {
-        "max_file_size": 10 * 1024 * 1024,  # 10MB
+        "max_file_size": int(os.getenv("MAX_FILE_SIZE_MB", "50")) * 1024 * 1024,  # Default 50MB, configurable via env
         "allowed_extensions": [".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp"],
         "temp_dir": "/tmp"
     }

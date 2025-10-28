@@ -77,6 +77,7 @@ services:
       - YOLO_PATH=${YOLO_PATH}
       - TITLE_YOLO=${TITLE_YOLO}
       - CORS_ORIGINS=${CORS_ORIGINS}
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB}
     volumes:
       - ./app/data/ml_models:/app/app/data/ml_models
       - ./logs:/app/logs

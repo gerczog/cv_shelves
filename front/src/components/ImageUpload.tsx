@@ -1,7 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { InboxOutlined } from '@ant-design/icons';
 import { Upload as AntUpload, message } from 'antd';
 import type { UploadFile, UploadProps } from 'antd';
+import { apiService, AppConfig } from '../services/api';
 
 interface ImageUploadProps {
   onImageSelect: (file: File) => void;
@@ -10,6 +11,33 @@ interface ImageUploadProps {
 
 const ImageUpload: React.FC<ImageUploadProps> = ({ onImageSelect, disabled = false }) => {
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [config, setConfig] = useState<AppConfig | null>(null);
+
+  // Load configuration on component mount
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const appConfig = await apiService.getConfig();
+        setConfig(appConfig);
+      } catch (error) {
+        console.error('Failed to load app config:', error);
+        // Fallback to default config
+        setConfig({
+          upload: {
+            max_file_size_mb: 50,
+            max_file_size_bytes: 50 * 1024 * 1024,
+            allowed_extensions: ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp']
+          },
+          models: {
+            rfdetr: { default_confidence_threshold: 0.5 },
+            yolo: { default_confidence_threshold: 0.4 }
+          }
+        });
+      }
+    };
+
+    loadConfig();
+  }, []);
 
   const handleChange: UploadProps['onChange'] = useCallback(({ fileList: newFileList }: { fileList: UploadFile[] }) => {
     setFileList(newFileList);
@@ -22,15 +50,17 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImageSelect, disabled = fal
       return false;
     }
 
-    const isLt10M = file.size / 1024 / 1024 < 10;
-    if (!isLt10M) {
-      message.error('Зображення повинно бути менше 10MB!');
+    // Use dynamic file size limit from config
+    const maxSizeMB = config?.upload.max_file_size_mb || 50;
+    const isWithinSizeLimit = file.size / 1024 / 1024 < maxSizeMB;
+    if (!isWithinSizeLimit) {
+      message.error(`Зображення повинно бути менше ${maxSizeMB}MB!`);
       return false;
     }
 
     onImageSelect(file);
     return false; // Prevent auto upload
-  }, [onImageSelect]);
+  }, [onImageSelect, config]);
 
   const handleRemove = useCallback(() => {
     setFileList([]);

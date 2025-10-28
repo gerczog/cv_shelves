@@ -129,4 +129,4 @@ volumes:
 
 networks:
   cv_shelves_network:
-    external: true
+    driver: bridge

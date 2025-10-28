@@ -24,10 +24,24 @@ up:
 	@echo "✅ Setup completed!"
 
 up-dev:
+	@echo "🔍 Checking if network '$(NETWORK_NAME)' exists..."
+	@if ! docker network inspect $(NETWORK_NAME) >/dev/null 2>&1; then \
+		echo "🌐 Creating network $(NETWORK_NAME)..."; \
+		docker network create $(NETWORK_NAME); \
+	else \
+		echo "✅ Network $(NETWORK_NAME) already exists."; \
+	fi
 	@echo "🚀 Starting in development mode..."
 	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) COMPOSE_DOCKER_CLI_BUILD=$(COMPOSE_DOCKER_CLI_BUILD) $(DOCKER_COMPOSE) up -d --build
 
 up-prod:
+	@echo "🔍 Checking if network '$(NETWORK_NAME)' exists..."
+	@if ! docker network inspect $(NETWORK_NAME) >/dev/null 2>&1; then \
+		echo "🌐 Creating network $(NETWORK_NAME)..."; \
+		docker network create $(NETWORK_NAME); \
+	else \
+		echo "✅ Network $(NETWORK_NAME) already exists."; \
+	fi
 	@echo "🚀 Starting in production mode..."
 	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) COMPOSE_DOCKER_CLI_BUILD=$(COMPOSE_DOCKER_CLI_BUILD) $(DOCKER_COMPOSE) --profile production up -d --build
 

@@ -4,13 +4,16 @@ Contains endpoints for ML model predictions and model management.
 """
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from typing import Optional, Dict, Any, List
 import tempfile
 import os
 import base64
+import json
+import io
 from pathlib import Path
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from datetime import datetime
 from pydantic import BaseModel
 
 from app.services.ml_service import ml_service
@@ -778,6 +781,117 @@ async def create_user(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
+
+
+@history_router.get("/export")
+async def export_history(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Export all history data (predictions and users) as JSON file.
+    
+    Returns:
+        Complete history data including all predictions and users as downloadable JSON file
+    """
+    try:
+        # Get all predictions
+        all_predictions = db.query(Prediction).options(
+            joinedload(Prediction.user)
+        ).order_by(Prediction.created_at.desc()).all()
+        
+        # Get all users
+        all_users = UserCRUD.get_all_users(db)
+        
+        # Format predictions data
+        predictions_data = []
+        for pred in all_predictions:
+            pred_dict = {
+                "id": pred.id,
+                "model": pred.model,
+                "imageUrl": pred.image_url,
+                "imageBase64": pred.image_base64,
+                "imageHash": pred.image_hash,
+                "results": pred.results,
+                "confidence": pred.confidence,
+                "rfdetrConfidence": pred.rfdetr_confidence,
+                "yoloConfidence": pred.yolo_confidence,
+                "confidenceThreshold": pred.confidence_threshold,
+                "rfdetrThreshold": pred.rfdetr_threshold,
+                "yoloThreshold": pred.yolo_threshold,
+                "comment": pred.comment,
+                "timestamp": pred.created_at.isoformat(),
+                "userId": pred.user_id,
+                "user": {
+                    "id": pred.user.id,
+                    "username": pred.user.username,
+                    "email": pred.user.email,
+                    "isActive": pred.user.is_active,
+                    "isSuperuser": pred.user.is_superuser,
+                    "createdAt": pred.user.created_at.isoformat()
+                } if pred.user else None
+            }
+            predictions_data.append(pred_dict)
+        
+        # Format users data
+        users_data = []
+        for user in all_users:
+            user_dict = {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "isActive": user.is_active,
+                "isSuperuser": user.is_superuser,
+                "createdAt": user.created_at.isoformat(),
+                "predictionsCount": len([p for p in all_predictions if p.user_id == user.id])
+            }
+            users_data.append(user_dict)
+        
+        # Create export data
+        export_data = {
+            "exportInfo": {
+                "timestamp": datetime.utcnow().isoformat(),
+                "totalPredictions": len(all_predictions),
+                "totalUsers": len(all_users),
+                "exportedBy": {
+                    "userId": current_user.id,
+                    "username": current_user.username
+                }
+            },
+            "predictions": predictions_data,
+            "users": users_data,
+            "statistics": {
+                "byModel": {
+                    "rfdetr": len([p for p in all_predictions if p.model == "rfdetr"]),
+                    "yolo": len([p for p in all_predictions if p.model == "yolo"]),
+                    "both": len([p for p in all_predictions if p.model == "both"])
+                },
+                "byUser": {
+                    user.username: len([p for p in all_predictions if p.user_id == user.id])
+                    for user in all_users
+                }
+            }
+        }
+        
+        # Convert to JSON string and create a file-like object
+        json_str = json.dumps(export_data, indent=2, ensure_ascii=False)
+        json_bytes = json_str.encode('utf-8')
+        
+        # Create a streaming response with proper headers for file download
+        filename = f"history_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": "application/json; charset=utf-8"
+        }
+        
+        return StreamingResponse(
+            io.BytesIO(json_bytes),
+            media_type="application/json",
+            headers=headers
+        )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error exporting history: {str(e)}")
 
 
 # Authentication endpoints

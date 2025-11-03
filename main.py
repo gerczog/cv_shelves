@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from app.routers import ml_router, history_router, auth_router
 from DB.database import create_tables, get_db
 from DB.crud import PredictionCRUD, UserCRUD
@@ -9,6 +9,8 @@ from app.middleware import get_current_user
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime
 from dotenv import load_dotenv
+import json
+import io
 import os
 
 load_dotenv()
@@ -147,7 +149,22 @@ async def export_history(
             }
         }
         
-        return JSONResponse(content=export_data)
+        # Convert to JSON string and create a file-like object
+        json_str = json.dumps(export_data, indent=2, ensure_ascii=False)
+        json_bytes = json_str.encode('utf-8')
+        
+        # Create a streaming response with proper headers for file download
+        filename = f"history_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": "application/json; charset=utf-8"
+        }
+        
+        return StreamingResponse(
+            io.BytesIO(json_bytes),
+            media_type="application/json",
+            headers=headers
+        )
     
     except Exception as e:
         return JSONResponse(

@@ -266,7 +266,7 @@ export const apiService = {
 
   // Export history as JSON
   exportHistory: async (): Promise<Blob> => {
-    const response = await api.get('/export/history', {
+    const response = await api.get('/v1/api/history/export', {
       responseType: 'blob',
     });
     return response.data;
